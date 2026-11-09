@@ -1,4 +1,4 @@
-## What's new in v0.6.1-louis.1
+## What's new in v0.6.1-louis.2
 
 A fork prerelease with the changes in casi-3/peek PRs #22 to #25, ahead of upstream merging them.
 
@@ -15,5 +15,6 @@ A fork prerelease with the changes in casi-3/peek PRs #22 to #25, ahead of upstr
 - The pause survives a restart. The live view shortcut still works while paused.
 
 **Fixes**
+- macOS: Peek is now a universal app that runs on Intel and Apple Silicon Macs. The Mac download was Apple Silicon only, so Intel Macs said "not supported on this Mac".
 - Windows: Peek now installs for all users into Program Files. The per-user install crashed on launch on some machines.
 - Camera, zone and live view lists no longer jump to the top when you toggle an item.

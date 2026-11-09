@@ -1,6 +1,6 @@
 {
   "name": "peek",
-  "version": "0.6.1-louis.1",
+  "version": "0.6.1-louis.2",
   "description": "Desktop pop-up overlay that shows a live Frigate camera feed when an object is detected",
   "license": "MIT",
   "author": "Peek",
@@ -21,8 +21,18 @@
     ],
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
       "category": "public.app-category.utilities",
       "identity": null
