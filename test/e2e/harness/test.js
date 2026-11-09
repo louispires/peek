@@ -8,6 +8,14 @@ const { expect } = base
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
+// Temporary: logs slow teardown steps while the macOS worker teardown hang is investigated.
+async function timed(name, fn) {
+  const started = Date.now()
+  await fn()
+  const ms = Date.now() - started
+  if (ms > 2000) console.log(`[e2e] slow teardown: ${name} took ${ms} ms`)
+}
+
 // The app is up once it subscribed to Frigate events and the tray lists the cameras from /api/config
 // (stream and size maps are filled just before the cameras are learned).
 async function waitReady(handle, broker, config) {
@@ -54,13 +62,13 @@ const test = base.test.extend({
   frigate: async ({}, use) => {
     const frigate = await startFrigate()
     await use(frigate)
-    await frigate.stop()
+    await timed('frigate.stop', () => frigate.stop())
   },
 
   broker: async ({}, use) => {
     const broker = await startBroker()
     await use(broker)
-    await broker.stop()
+    await timed('broker.stop', () => broker.stop())
   },
 
   // launch({ config, prefs, env, ready }): config is merged over the default test config;
@@ -88,7 +96,7 @@ const test = base.test.extend({
     const failed = testInfo.status !== testInfo.expectedStatus
     for (let i = 0; i < handles.length; i++) {
       if (failed) await attachFailureDetails(handles[i], testInfo, i)
-      await closePeek(handles[i])
+      await timed('closePeek', () => closePeek(handles[i]))
     }
   }
 })

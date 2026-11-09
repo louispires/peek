@@ -123,6 +123,8 @@ test('B7 the Dock icon follows the setting', async ({ launch, frigate, broker })
   await page.check('#showDock')
   await page.click('#save')
   await expect.poll(() => dockVisible(peek)).toBe(true)
+  // Electron ignores app.dock.hide() within 1 s of app.dock.show(), to avoid duplicate Dock icons.
+  await sleep(1500)
 
   await expect.poll(() => peek.records('tray-menu').length).toBeGreaterThan(0)
   await peek.clickTray(['Settings…'])

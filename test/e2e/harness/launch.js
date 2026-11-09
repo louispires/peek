@@ -145,9 +145,15 @@ async function launchPeek({ config, prefs, env, userData: reuseUserData, timeout
 async function closePeek(handle, { keepFiles = false } = {}) {
   const child = handle.child
   if (child.exitCode === null && child.signalCode === null) {
+    const started = Date.now()
     const closed = handle.app.close().catch(() => {})
     const timer = new Promise(resolve => setTimeout(resolve, 8000, 'timeout'))
-    if (await Promise.race([closed, timer]) === 'timeout') child.kill()
+    if (await Promise.race([closed, timer]) === 'timeout') {
+      console.log(`[e2e] app.close() timed out after 8 s; killing pid ${child.pid}`)
+      child.kill('SIGKILL')
+      const settled = await Promise.race([closed.then(() => 'closed'), new Promise(resolve => setTimeout(resolve, 5000, 'stuck'))])
+      console.log(`[e2e] after kill: app.close() ${settled}, ${Date.now() - started} ms total`)
+    }
   }
   if (!keepFiles) fs.rmSync(handle.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 }
