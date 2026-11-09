@@ -1,0 +1,50 @@
+name: macOS end-to-end
+
+on:
+  push:
+    branches: [test/macos-e2e]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run dist:mac -- --publish never
+
+      - run: npm run test:e2e
+
+      - name: Summarise results
+        if: always()
+        run: node test/e2e/harness/summary.js
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            test/e2e/report
+            test/e2e/results
+          if-no-files-found: warn
+
+      - name: Upload macOS build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: peek-mac-build
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: warn

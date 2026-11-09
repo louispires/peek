@@ -1,0 +1,14 @@
+{
+  "cameras": {
+    "front_door": {
+      "live": { "streams": { "Front Door Main": "front_door_main" } },
+      "detect": { "width": 1280, "height": 720 },
+      "zones": { "driveway": {}, "Porch": {} }
+    },
+    "back_yard": {
+      "detect": { "width": 640, "height": 480 },
+      "zones": { "Porch": {} }
+    },
+    "garage_cam": {}
+  }
+}

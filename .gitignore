@@ -2,3 +2,5 @@ node_modules/
 dist/
 config.json
 .DS_Store
+test/e2e/report/
+test/e2e/results/
