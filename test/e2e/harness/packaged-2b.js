@@ -6,7 +6,8 @@ const path = require('path')
 const { execFileSync, spawn } = require('child_process')
 const { _electron } = require('@playwright/test')
 
-const packagedEnabled = process.platform === 'darwin' && !!process.env.CI
+// GITHUB_ACTIONS as well as CI, so a developer Mac with CI set in its shell is never wiped.
+const packagedEnabled = process.platform === 'darwin' && !!process.env.CI && process.env.GITHUB_ACTIONS === 'true'
 
 const ROOT = path.join(__dirname, '..', '..', '..')
 const DIST = path.join(ROOT, 'dist')
