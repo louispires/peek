@@ -1,6 +1,14 @@
-## What's new in v0.6.1-louis.2
+## What's new in v0.6.1-louis.3
 
-A fork prerelease with the changes in casi-3/peek PRs #22 to #25, ahead of upstream merging them.
+A fork prerelease with the changes in casi-3/peek PRs #22 to #26, ahead of upstream merging them.
+
+**Zoom and resize** (new in this release)
+- Scroll over a pop-up or a live view tile to zoom in or out towards the mouse pointer. In a grid, each tile zooms on its own.
+- Drag to move around while zoomed in. Double-click to zoom back out.
+- Ctrl + scroll makes the window bigger or smaller. In live view, every tile grows or shrinks together.
+- Pop-up and live view sizes are saved separately and kept after a restart. "Reset overlay size" in the tray menu puts both back.
+
+### Earlier in this fork
 
 **Live view**
 - A global shortcut (default Ctrl+Alt+Z, change it in Settings) opens a live view of one camera, or a grid of several, and closes it again.
