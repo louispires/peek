@@ -7,78 +7,169 @@
   html, body { width: 900px; height: 560px; overflow: hidden; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; }
   #screen {
     position: absolute; inset: 0;
-    background:
-      radial-gradient(120% 90% at 20% 0%, #3a4a6b 0%, #1c2340 45%, #0e1124 100%);
+    background: radial-gradient(120% 90% at 20% 0%, #3a4a6b 0%, #1c2340 45%, #0e1124 100%);
   }
   #menubar {
-    position: absolute; top: 0; left: 0; right: 0; height: 26px;
+    position: absolute; top: 0; left: 0; right: 0; height: 26px; z-index: 20;
     background: rgba(10, 12, 22, 0.45);
     backdrop-filter: blur(8px);
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 14px; color: #e7e9ee; font-size: 12px; font-weight: 500;
   }
-  #menubar .right { display: flex; gap: 14px; align-items: center; opacity: 0.85; }
+  #menubar .right { display: flex; gap: 14px; align-items: center; }
+  #tray { position: relative; padding: 2px 7px; border-radius: 5px; display: flex; gap: 6px; align-items: center; }
+  #tray.open { background: rgba(255, 255, 255, 0.18); }
+  #tray-paused {
+    position: absolute; top: 24px; right: -20px; display: none; white-space: nowrap;
+    padding: 4px 8px; border-radius: 5px; font-size: 11px; color: #e7e9ee;
+    background: rgba(38, 40, 48, 0.94); border: 1px solid rgba(255, 255, 255, 0.14);
+  }
   #wp-title {
     position: absolute; left: 0; right: 0; top: 46%;
-    text-align: center; color: rgba(255,255,255,0.10);
+    text-align: center; color: rgba(255,255,255,0.08);
     font-size: 88px; font-weight: 800; letter-spacing: 4px;
-    transform: translateY(-50%); user-select: none;
+    transform: translateY(-50%);
   }
 
+  /* Card styles mirror src/renderer/style.css so the demo looks like the real overlay. */
   #card {
-    position: absolute; top: 50px; right: 24px;
-    width: 360px; height: 280px;
+    position: absolute; top: 44px; right: 24px;
+    width: 400px; height: 225px;
     border-radius: 20px; overflow: hidden;
-    background: #0e1116;
-    border: 1px solid rgba(255,255,255,0.10);
-    box-shadow: 0 24px 60px rgba(0,0,0,0.55);
-    transform: translateX(440px);
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
     opacity: 0;
   }
-
-  #feed { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-
-  #top, #bottom {
-    position: absolute; left: 0; right: 0; z-index: 3;
-    padding: 14px 16px; color: #fff;
-    display: flex; align-items: center;
+  #timer-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 5;
+    transform-origin: left; opacity: 0;
   }
-  #top { top: 0; justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0)); }
-  #bottom { bottom: 0; flex-direction: column; align-items: flex-start; gap: 4px;
-    background: linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0)); }
-  #cam { font-size: 15px; font-weight: 600; }
-  #close { width: 24px; height: 24px; border-radius: 50%;
-    background: rgba(0,0,0,0.4); color: #fff; font-size: 13px;
-    display: flex; align-items: center; justify-content: center; }
-  #line { display: flex; align-items: center; gap: 10px; }
-  #badge { font-size: 17px; font-weight: 700; }
-  #score { font-size: 12px; font-weight: 700; color: #07140c;
-    background: #3ddc84; padding: 3px 9px; border-radius: 999px; }
-  #info { font-size: 13px; opacity: 0.92; }
+  #video { position: absolute; inset: 0; transform-origin: 0 0; }
+  #feed { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #grid {
+    position: absolute; inset: 0; display: none;
+    grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; background: #000;
+  }
+  .tile { position: relative; overflow: hidden; }
+  .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .tile-name {
+    position: absolute; left: 10px; bottom: 8px; z-index: 3;
+    font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+  #top, #bottom {
+    position: absolute; left: 0; right: 0; z-index: 4; padding: 12px 14px; color: #fff;
+  }
+  #top {
+    top: 0; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  }
+  #bottom {
+    bottom: 0; display: flex; flex-direction: column; gap: 3px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0));
+  }
+  #card.live #bottom, #card.live #timer-bar { display: none; }
+  #card.live #grid { display: grid; }
+  #card.live #video { display: none; }
+  #cam { font-size: 14px; font-weight: 600; letter-spacing: 0.2px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+  #close {
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    font-size: 12px; color: rgba(255, 255, 255, 0.85); background: rgba(0, 0, 0, 0.35);
+  }
+  #detections { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .chip {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 16px; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 7px;
+    padding: 3px 8px 3px 6px; background: rgba(0, 0, 0, 0.25);
+  }
+  .chip-score {
+    font-size: 12px; font-weight: 700; color: #04130a; background: #3ddc84;
+    padding: 2px 9px; border-radius: 10px; text-shadow: none;
+  }
+  #info { font-size: 12px; color: rgba(255, 255, 255, 0.85); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+
+  #caption {
+    position: absolute; left: 40px; bottom: 44px; max-width: 430px; color: #fff; opacity: 0;
+  }
+  #caption-title { font-size: 26px; font-weight: 750; letter-spacing: -0.3px; line-height: 1.15; }
+  #caption-sub { margin-top: 6px; font-size: 15px; color: rgba(231, 233, 238, 0.75); line-height: 1.35; }
+
+  #keys {
+    position: absolute; left: 40px; bottom: 150px; display: flex; gap: 8px; align-items: center;
+    color: rgba(255, 255, 255, 0.7); font-size: 16px; font-weight: 600; opacity: 0;
+  }
+  kbd {
+    font-family: inherit; font-size: 15px; font-weight: 700; color: #fff;
+    min-width: 38px; padding: 7px 12px; text-align: center;
+    border-radius: 8px; background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.28); border-bottom-width: 3px;
+  }
+  kbd.down { background: rgba(61, 220, 132, 0.28); border-color: #3ddc84; }
+
+  #cursor { position: absolute; left: 0; top: 0; z-index: 30; opacity: 0; pointer-events: none; }
+  #wheel {
+    position: absolute; left: 22px; top: 20px; display: flex; flex-direction: column; align-items: center;
+    color: #fff; font-size: 11px; font-weight: 700; line-height: 1; text-shadow: 0 1px 3px #000; opacity: 0;
+  }
+
+  #menu, #submenu {
+    position: absolute; z-index: 25; width: 230px; padding: 5px;
+    border-radius: 9px; background: rgba(38, 40, 48, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    color: #e7e9ee; font-size: 13px; display: none;
+  }
+  #menu { top: 30px; right: 70px; }
+  #submenu { width: 200px; right: 304px; }
+  .mi { display: flex; justify-content: space-between; padding: 4px 10px; border-radius: 5px; }
+  .mi .tick { width: 16px; display: inline-block; }
+  .mi.hl { background: #2f6fde; color: #fff; }
+  .mi.dim { color: rgba(231, 233, 238, 0.4); }
+  .sep { height: 1px; margin: 4px 6px; background: rgba(255, 255, 255, 0.12); }
 </style>
 </head>
 <body>
   <div id="screen">
     <div id="wp-title">PEEK</div>
     <div id="menubar">
-      <span>🔔 Peek</span>
-      <span class="right"><span>100%</span><span id="clock">21:47</span></span>
+      <span>Finder&nbsp;&nbsp;&nbsp;File&nbsp;&nbsp;&nbsp;Edit&nbsp;&nbsp;&nbsp;View</span>
+      <span class="right">
+        <span id="tray">🔔 <span id="tray-paused">Peek (paused until 22:47)</span></span>
+        <span>100%</span><span>Mon 21:47</span>
+      </span>
     </div>
 
     <div id="card">
-      <canvas id="feed" width="360" height="280"></canvas>
+      <div id="timer-bar"></div>
+      <div id="video"><canvas id="feed" width="800" height="450"></canvas></div>
+      <div id="grid"></div>
       <div id="top">
-        <span id="cam">🔔 Front Door</span>
+        <span id="cam"></span>
         <span id="close">✕</span>
       </div>
       <div id="bottom">
-        <div id="line">
-          <span id="badge">🧍 Person</span>
-          <span id="score">94%</span>
-        </div>
-        <div id="info">👤 Alex&nbsp;&nbsp;&nbsp;📍 Front porch</div>
+        <div id="detections"></div>
+        <div id="info"></div>
       </div>
+    </div>
+
+    <div id="keys"></div>
+    <div id="caption">
+      <div id="caption-title"></div>
+      <div id="caption-sub"></div>
+    </div>
+
+    <div id="menu"></div>
+    <div id="submenu"></div>
+
+    <div id="cursor">
+      <svg width="22" height="26" viewBox="0 0 22 26">
+        <path d="M2 2 L2 21 L7 16.5 L10.5 24 L14 22.5 L10.5 15 L17 15 Z"
+          fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round" />
+      </svg>
+      <div id="wheel"></div>
     </div>
   </div>
 
