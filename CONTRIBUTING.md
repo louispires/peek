@@ -5,7 +5,7 @@ Thanks for your interest in improving Peek! Issues, ideas and pull requests are 
 ## Getting started
 
 ```bash
-git clone https://github.com/casi-3/peek
+git clone https://github.com/louispires/peek
 cd peek
 npm install
 cp config.example.json config.json   # then edit it, or use the in-app setup window

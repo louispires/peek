@@ -2,7 +2,7 @@ const https = require('https')
 const fs = require('fs')
 const path = require('path')
 
-const REPO = 'casi-3/peek'
+const REPO = 'louispires/peek'
 const UA = 'Peek-Updater'
 
 function get(url, json) {
@@ -64,8 +64,12 @@ function pickAsset(assets, platform) {
   return names.find(a => /\.appimage$/i.test(a.name)) || null
 }
 
+// The fork only publishes prereleases, which /releases/latest never returns, so take the newest
+// published release from the list instead.
 async function getLatest() {
-  const data = await get(`https://api.github.com/repos/${REPO}/releases/latest`, true)
+  const list = await get(`https://api.github.com/repos/${REPO}/releases?per_page=10`, true)
+  const data = (Array.isArray(list) ? list : []).find(r => !r.draft)
+  if (!data) throw new Error('No published releases')
   return {
     version: String(data.tag_name || '').replace(/^v/i, ''),
     name: data.name || data.tag_name || '',

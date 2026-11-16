@@ -11,13 +11,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/casi-3/peek/releases"><img src="https://img.shields.io/badge/release-v0.6.0-3ddc84" alt="Release" /></a>
+  <a href="https://github.com/louispires/peek/releases"><img src="https://img.shields.io/badge/release-v0.6.1--louis.3-3ddc84" alt="Release" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-555" alt="Platforms" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License" /></a>
 </p>
 
 <p align="center">
-  <img src="docs/demo.gif" width="720" alt="Peek overlay demo" />
+  <img src="docs/demo.gif" width="720" alt="Peek demo: a pop-up with several detected objects, an audio detection, zoom and resize, the live view grid, and the zone filter and pause menus" />
 </p>
 
 ## Features
@@ -25,11 +25,15 @@
 - Live WebRTC feed (sub-second latency) the instant Frigate detects something
 - Also pops up for Frigate audio detections (crying, yelling, and the like), not just tracked objects
 - Shows the detected object, score, recognized face, license plate, and entered zones
+- Several objects at once, each with its own coloured chip and bounding box
+- Only pop up for objects in the Frigate zones you pick
 - Optional instant snapshot so there is no black frame while the live feed connects
 - Menu bar app: pick which cameras notify, toggle sound, set the dismiss delay
+- Dismiss when every object stops moving, or after a set delay
 - Pause pop-ups for 30 minutes, 1, 3 or 6 hours, or the rest of the day
 - Global keyboard shortcut (default `Ctrl+Alt+Z`) opens a live view of one camera or a grid of several, on demand
-- Frameless, always-on-top, translucent card that slides in and out
+- Scroll to zoom and drag to pan; Ctrl + scroll to resize the pop-up or live view
+- Frameless, always-on-top, translucent card that slides in and out, placed anywhere on screen and matched to the camera's aspect ratio
 - Cross-platform: macOS and Windows
 - Connects to your existing MQTT broker and Frigate, no server-side change
 - Optional HTTPS, including a reverse proxy on port 443; certificates are verified against the system trust store, with an opt-in for self-signed certificates
@@ -194,6 +198,17 @@ npm run dist:win    # Windows installer + portable
 
 Tagging a release (`git tag v0.1.0 && git push --tags`) builds macOS and Windows
 on CI and attaches the binaries to a GitHub Release.
+
+### Demo GIF
+
+`docs/demo.gif` is rendered from the animated page in `docs/demo`. To rebuild it
+after changing that page, install [ffmpeg](https://ffmpeg.org) and run:
+
+```bash
+npx electron docs/demo/capture-demo.js
+```
+
+Set `FFMPEG` to the ffmpeg binary if it is not on your `PATH`.
 
 ## Troubleshooting
 
