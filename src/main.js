@@ -1355,13 +1355,27 @@ function notifyUpdate(version) {
 }
 
 function runInstaller(file, mode) {
-  if (process.platform === 'win32') {
-    const child = spawn(file, mode === 'silent' ? ['/S'] : [], { detached: true, stdio: 'ignore' })
-    child.unref()
-    setTimeout(() => app.quit(), 800)
-  } else {
+  if (process.platform !== 'win32') {
     shell.openPath(file)
+    return Promise.resolve({ ok: true })
   }
+  // The per-machine installer needs admin rights. spawn() cannot raise the UAC prompt and
+  // fails with EACCES, but Start-Process goes through ShellExecute, which can.
+  const command = "Start-Process -FilePath '" + file.replace(/'/g, "''") + "'" +
+    (mode === 'silent' ? " -ArgumentList '/S'" : '')
+  const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+  return new Promise(resolve => {
+    const child = spawn(powershell, ['-NoProfile', '-NonInteractive', '-Command', command], { windowsHide: true, stdio: 'ignore' })
+    child.on('error', err => resolve({ error: 'Could not start the installer: ' + err.message }))
+    child.on('exit', code => {
+      if (code !== 0) {
+        resolve({ error: 'The installer did not start. The admin prompt may have been declined.' })
+        return
+      }
+      setTimeout(() => app.quit(), 800)
+      resolve({ ok: true })
+    })
+  })
 }
 
 function shellQuote(s) {
@@ -1439,8 +1453,7 @@ async function installUpdate(mode) {
   if (process.platform === 'darwin' && app.isPackaged && /\.zip$/i.test(dest)) {
     return installMacUpdate(dest)
   }
-  runInstaller(dest, mode)
-  return { ok: true }
+  return runInstaller(dest, mode)
 }
 
 app.whenReady().then(() => {
