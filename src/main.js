@@ -932,7 +932,8 @@ function handleEvent(data) {
   ;[...(after.current_zones || []), ...(after.entered_zones || [])].forEach(z => learnZone(z, after.camera))
   learnObjectLabel(after.label)
 
-  if (isPaused()) {
+  // Live view is something the user opened on purpose, so events wait behind it like a pause.
+  if (isPaused() || liveView) {
     if (data.type === 'end') {
       zoneEvents.delete(after.id)
       stationaryEvents.delete(after.id)
@@ -997,7 +998,7 @@ function handleEvent(data) {
 }
 
 function emitAudioEvent(type, camera, label) {
-  if (placementMode) return
+  if (placementMode || liveView) return
   if (!win || win.isDestroyed()) return
   if (!cameraEnabled(camera) || !audioLabelEnabled(label)) return
   if (type === 'new' && prefs.zoneFilter.length) return
