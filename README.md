@@ -158,7 +158,8 @@ hide it. The shortcut is also on the tray menu as **Show live view**.
   open a grid sized to fit your screen.
 - Change or clear the shortcut in **Settings…**: click the shortcut box and
   press the new keys. Peek warns you if another app already holds them.
-- A new detection replaces the live view with the usual notification card.
+- Detections don't pop up while the live view is open, so it stays until you
+  close it.
 - Clicking a tile opens that camera in Frigate, unless **Click notification to**
   is set to **Do nothing**.
 
