@@ -1,12 +1,17 @@
-## What's new in v0.6.1-louis.5
+## What's new in v0.6.1-louis.6
 
 A fork prerelease with the changes in casi-3/peek PRs #22 to #27, ahead of upstream merging them.
 
-**Live view stays open** (new in this release)
-- Detections no longer close the live view. It stays on screen until you close it with the shortcut or its close button.
-- Detections that happen while the live view is open don't pop up afterwards.
+**Windows updates install again** (new in this release)
+- "Install" and "Silent install" in the update window failed on Windows with an EACCES error. They now ask for admin rights and run the installer.
+- Both still show the Windows admin prompt, since Peek installs for all users.
+- Updating to this release still uses the old code, so install it by hand once. Later updates work from the update window.
 
 ### Earlier in this fork
+
+**Live view stays open**
+- Detections no longer close the live view. It stays on screen until you close it with the shortcut or its close button.
+- Detections that happen while the live view is open don't pop up afterwards.
 
 **Objects per zone**
 - Each picked zone can allow only some objects, such as cars in the driveway but people on the front porch.
