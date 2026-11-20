@@ -1,13 +1,17 @@
-## What's new in v0.6.1-louis.6
+## What's new in v0.6.1-louis.7
 
 A fork prerelease with the changes in casi-3/peek PRs #22 to #27, ahead of upstream merging them.
 
-**Windows updates install again** (new in this release)
-- "Install" and "Silent install" in the update window failed on Windows with an EACCES error. They now ask for admin rights and run the installer.
-- Both still show the Windows admin prompt, since Peek installs for all users.
-- Updating to this release still uses the old code, so install it by hand once. Later updates work from the update window.
+**Overlay stays on its monitor after a restart** (new in this release)
+- With two or more monitors, an overlay moved to a non-main monitor came back on the main monitor after restarting the PC. It now stays where you put it.
+- Positions you already set are kept. Start this version once before your next restart so it can remember which monitor yours is on.
 
 ### Earlier in this fork
+
+**Windows updates install again**
+- "Install" and "Silent install" in the update window failed on Windows with an EACCES error. They now ask for admin rights and run the installer.
+- Both still show the Windows admin prompt, since Peek installs for all users.
+- Updating to v0.6.1-louis.6 still used the old code, so it had to be installed by hand once. Later updates work from the update window.
 
 **Live view stays open**
 - Detections no longer close the live view. It stays on screen until you close it with the shortcut or its close button.
