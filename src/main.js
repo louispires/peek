@@ -1,14 +1,20 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, shell, dialog, Notification, session, globalShortcut } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
 const { spawn, execFileSync } = require('child_process')
 const mqtt = require('mqtt')
 const { readConfig, saveConfig } = require('./config')
 const { readPrefs, writePrefs } = require('./prefs')
 const updater = require('./updater')
 const frigateAuth = require('./frigate-auth')
+const { log } = require('./log')
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+// Chromium marks windows as occluded while the session is locked or asleep and stops
+// painting them. The hidden, always-on-top transparent overlay is not always marked
+// visible again, so after a wake or a login it was shown but drew nothing.
+if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 
 const gotInstanceLock = app.requestSingleInstanceLock()
 if (!gotInstanceLock) {
@@ -42,6 +48,13 @@ let certProcSet = false
 let liveView = null
 let registeredHotkey = null
 let resumeTimer = null
+let frigateConfigLoaded = false
+let configLoading = false
+let configRetryTimer = null
+let configRetryDelay = 0
+let hotkeyRetryTimer = null
+let overlayRecreateTimer = null
+let overlayRecreates = 0
 const knownCameras = new Set()
 const knownAudioLabels = new Set()
 const activeAudio = new Set()
@@ -53,6 +66,12 @@ const AUDIO_NON_LABELS = new Set(['all', 'dBFS', 'rms', 'transcription', 'set', 
 const REAUTH_MIN_INTERVAL_MS = 10000
 const REAUTH_RETRY_DELAY_MS = 5000
 const REAUTH_MAX_RETRIES = 3
+const CONFIG_RETRY_MIN_MS = 5000
+const CONFIG_RETRY_MAX_MS = 5 * 60 * 1000
+const HOTKEY_RETRY_MS = 10000
+const HOTKEY_MAX_RETRIES = 30
+const OVERLAY_RECREATE_DELAY_MS = 2000
+const OVERLAY_MAX_RECREATES = 5
 const DEFAULT_LIVE_HOTKEY = 'CommandOrControl+Alt+Z'
 const MIN_SIZE_SCALE = 0.5
 const MAX_SIZE_SCALE = 3
@@ -116,9 +135,34 @@ async function fetchFrigateConfig(token) {
     buildStreamMap(frigateConfig)
     const cameras = (frigateConfig && frigateConfig.cameras) || {}
     Object.keys(cameras).forEach(name => learnCamera(name))
+    frigateConfigLoaded = true
+    clearTimeout(configRetryTimer)
+    configRetryTimer = null
+    configRetryDelay = 0
+    log('Frigate config loaded (' + Object.keys(cameras).length + ' cameras)')
   } catch (err) {
-    console.error('[peek] could not fetch Frigate config: ' + err.message)
+    log('could not fetch Frigate config: ' + err.message)
+    if (!frigateConfigLoaded) scheduleConfigRetry()
   }
+}
+
+function loadFrigateConfig() {
+  if (configLoading) return
+  configLoading = true
+  initFrigateAuth()
+    .then(() => fetchFrigateConfig(frigateToken))
+    .finally(() => { configLoading = false })
+}
+
+// At login the network is often not up yet. Without the config, live view and popups fall
+// back to guessed stream names, so keep trying until it has loaded once.
+function scheduleConfigRetry() {
+  if (configRetryTimer) return
+  configRetryDelay = Math.min(configRetryDelay ? configRetryDelay * 2 : CONFIG_RETRY_MIN_MS, CONFIG_RETRY_MAX_MS)
+  configRetryTimer = setTimeout(() => {
+    configRetryTimer = null
+    loadFrigateConfig()
+  }, configRetryDelay)
 }
 
 function snapshotUrl(camera) {
@@ -354,8 +398,56 @@ function createWindow() {
   })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  const contents = win.webContents
+  contents.on('did-finish-load', () => log('overlay loaded'))
+  contents.on('did-fail-load', (e, code, description, url, isMainFrame) => {
+    if (!isMainFrame || code === -3) return
+    log('overlay failed to load: ' + description + ' (' + code + ')')
+    recreateOverlay(true)
+  })
+  contents.on('render-process-gone', (e, details) => {
+    log('overlay renderer gone: ' + details.reason + ' (exit code ' + details.exitCode + ')')
+    recreateOverlay(true)
+  })
+  win.on('unresponsive', () => log('overlay unresponsive'))
+  win.on('responsive', () => log('overlay responsive again'))
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'))
   positionWindow()
+}
+
+// The overlay is transparent, so when its renderer is dead or has stopped painting it shows
+// nothing at all, and every event and live view request sent to it is silently lost. Only
+// failures count toward the cap; a fresh window after a wake or unlock is routine.
+function recreateOverlay(failed) {
+  if (overlayRecreateTimer) return
+  if (failed) {
+    if (overlayRecreates >= OVERLAY_MAX_RECREATES) {
+      log('overlay keeps failing, not recreating it again')
+      return
+    }
+    overlayRecreates++
+  }
+  overlayRecreateTimer = setTimeout(() => {
+    overlayRecreateTimer = null
+    const old = win
+    win = null
+    liveView = null
+    placementMode = false
+    if (old && !old.isDestroyed()) old.destroy()
+    createWindow()
+    buildMenu()
+    log('overlay recreated')
+  }, OVERLAY_RECREATE_DELAY_MS)
+}
+
+// Records whether the overlay page itself believes it is visible. "hidden" while the window
+// is shown means Chromium has stopped painting it.
+function logOverlayState(what) {
+  const w = win
+  if (!w || w.isDestroyed()) return
+  w.webContents.executeJavaScript('document.visibilityState')
+    .then(state => log(what + ': overlay page ' + state + ', window ' + (w.isDestroyed() ? 'gone' : w.isVisible() ? 'shown' : 'hidden')))
+    .catch(() => {})
 }
 
 function defaultPrefs() {
@@ -576,6 +668,7 @@ function openLiveView() {
     return
   }
   liveView = { count: cameras.length }
+  setTimeout(() => logOverlayState('opened live view (' + cameras.length + ' cameras)'), 500)
   positionWindow()
   win.showInactive()
   win.webContents.send('live-open', {
@@ -591,6 +684,7 @@ function openLiveView() {
 }
 
 function toggleLiveView() {
+  log('live view toggled (' + (liveView ? 'closing' : 'opening') + ')')
   if (liveView) {
     if (win && !win.isDestroyed()) win.webContents.send('live-close', { animate: true })
     return
@@ -598,7 +692,9 @@ function toggleLiveView() {
   openLiveView()
 }
 
-function applyHotkey(accelerator) {
+function applyHotkey(accelerator, attempt = 0) {
+  clearTimeout(hotkeyRetryTimer)
+  hotkeyRetryTimer = null
   if (registeredHotkey) {
     globalShortcut.unregister(registeredHotkey)
     registeredHotkey = null
@@ -607,15 +703,36 @@ function applyHotkey(accelerator) {
     try {
       if (globalShortcut.register(accelerator, toggleLiveView)) {
         registeredHotkey = accelerator
+        log('live view shortcut ' + accelerator + ' registered' + (attempt ? ' after ' + attempt + ' retries' : ''))
       } else {
-        console.error('[peek] live view shortcut ' + accelerator + ' is in use by another app')
+        if (attempt === 0) log('live view shortcut ' + accelerator + ' is in use by another app, retrying')
+        scheduleHotkeyRetry(accelerator, attempt)
       }
     } catch (err) {
-      console.error('[peek] invalid live view shortcut ' + accelerator + ': ' + err.message)
+      log('invalid live view shortcut ' + accelerator + ': ' + err.message)
     }
   }
   buildMenu()
   return registeredHotkey === accelerator
+}
+
+// Another app starting at login can hold the combination for a while, and one failed
+// attempt would leave the shortcut dead until Peek is restarted.
+function scheduleHotkeyRetry(accelerator, attempt) {
+  if (attempt >= HOTKEY_MAX_RETRIES) {
+    log('gave up on live view shortcut ' + accelerator)
+    return
+  }
+  hotkeyRetryTimer = setTimeout(() => {
+    hotkeyRetryTimer = null
+    if (registeredHotkey || prefs.liveHotkey !== accelerator) return
+    // The setup window may be capturing keys, so wait until it closes.
+    if (setupWin && !setupWin.isDestroyed()) {
+      scheduleHotkeyRetry(accelerator, attempt)
+      return
+    }
+    applyHotkey(accelerator, attempt + 1)
+  }, HOTKEY_RETRY_MS)
 }
 
 function hotkeyAvailable(accelerator) {
@@ -1018,7 +1135,10 @@ function handleEvent(data) {
   }
 
   if (!win || win.isDestroyed()) return
-  if (type === 'new') revealOverlay()
+  if (type === 'new') {
+    revealOverlay()
+    setTimeout(() => logOverlayState('popup ' + after.camera + ' ' + after.label), 500)
+  }
   win.webContents.send('frigate-event', event)
 }
 
@@ -1070,13 +1190,35 @@ function handleAudioState(camera, label, on) {
 function startMqtt() {
   const prefix = config.topicPrefix || 'frigate'
   const availableTopic = `${prefix}/available`
+  let lastError = null
+  let receiving = false
   mqttClient = mqtt.connect(config.mqtt, { reconnectPeriod: 3000 })
   mqttClient.on('connect', () => {
+    log('MQTT connected')
+    lastError = null
+    receiving = false
     mqttClient.subscribe(`${prefix}/events`)
     mqttClient.subscribe(availableTopic)
     mqttClient.subscribe(`${prefix}/+/audio/+`)
+    // The network is clearly up now, so don't wait out the retry backoff.
+    if (!frigateConfigLoaded) {
+      clearTimeout(configRetryTimer)
+      configRetryTimer = null
+      loadFrigateConfig()
+    }
+  })
+  mqttClient.on('offline', () => log('MQTT offline'))
+  mqttClient.on('error', (err) => {
+    const message = (err && err.message) || String(err)
+    if (message === lastError) return
+    lastError = message
+    log('MQTT error: ' + message)
   })
   mqttClient.on('message', (topic, payload) => {
+    if (!receiving) {
+      receiving = true
+      log('MQTT receiving messages')
+    }
     if (topic === availableTopic) {
       handleFrigateAvailability(payload.toString())
       return
@@ -1202,10 +1344,11 @@ function startApp() {
   schedulePauseEnd()
   applyOpenAtLogin(prefs.openAtLogin)
   rememberPlacementDisplay()
+  log('displays: ' + screen.getAllDisplays().map(d => `${d.id} "${d.label}" ${d.bounds.width}x${d.bounds.height} at ${d.bounds.x},${d.bounds.y}`).join('; '))
   createWindow()
   createTray()
   applyHotkey(prefs.liveHotkey)
-  initFrigateAuth().then(() => fetchFrigateConfig(frigateToken))
+  loadFrigateConfig()
   startMqtt()
 }
 
@@ -1471,8 +1614,23 @@ app.whenReady().then(() => {
   if (!gotInstanceLock) return
   if (process.platform === 'darwin' && app.dock && !readPrefs().showDock) app.dock.hide()
 
+  log('Peek ' + app.getVersion() + ' starting, system up ' + Math.round(os.uptime()) + 's')
+  app.on('child-process-gone', (e, details) => {
+    log(details.type + ' process gone: ' + details.reason + ' (exit code ' + details.exitCode + ')')
+  })
+  screen.on('display-added', (e, d) => log('display added: ' + d.id + ' "' + d.label + '"'))
+  screen.on('display-removed', (e, d) => log('display removed: ' + d.id + ' "' + d.label + '"'))
+
   const { powerMonitor } = require('electron')
+  powerMonitor.on('suspend', () => log('going to sleep'))
+  powerMonitor.on('lock-screen', () => log('screen locked'))
+  powerMonitor.on('unlock-screen', () => {
+    log('screen unlocked')
+    if (appStarted && !placementMode) recreateOverlay(false)
+  })
   powerMonitor.on('resume', () => {
+    log('resumed from sleep')
+    if (appStarted && !placementMode) recreateOverlay(false)
     if (mqttClient) mqttClient.reconnect()
     initFrigateAuth()
     if (prefs) {
