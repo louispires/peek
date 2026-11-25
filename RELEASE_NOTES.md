@@ -1,12 +1,18 @@
-## What's new in v0.6.1-louis.7
+## What's new in v0.6.1-louis.8
 
 A fork prerelease with the changes in casi-3/peek PRs #22 to #27, ahead of upstream merging them.
 
-**Overlay stays on its monitor after a restart** (new in this release)
-- With two or more monitors, an overlay moved to a non-main monitor came back on the main monitor after restarting the PC. It now stays where you put it.
-- Positions you already set are kept. Start this version once before your next restart so it can remember which monitor yours is on.
+**Pop-ups and live view keep working after sleep** (new in this release)
+- After the PC woke from sleep, and sometimes after a restart, the shortcut and "Show live view" did nothing and no pop-ups appeared until Peek was restarted. They now keep working.
+- If Frigate isn't reachable yet when Peek starts at login, it keeps trying instead of giving up.
+- If another app holds the live view shortcut when Peek starts, Peek keeps trying to claim it for 5 minutes.
+- Peek now writes a log, peek.log, in its config folder (tray menu, Open config folder). Attach it when reporting a problem.
 
 ### Earlier in this fork
+
+**Overlay stays on its monitor after a restart**
+- With two or more monitors, an overlay moved to a non-main monitor came back on the main monitor after restarting the PC. It now stays where you put it.
+- Positions you already set are kept. Start this version once before your next restart so it can remember which monitor yours is on.
 
 **Windows updates install again**
 - "Install" and "Silent install" in the update window failed on Windows with an EACCES error. They now ask for admin rights and run the installer.
