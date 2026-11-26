@@ -1,14 +1,25 @@
-## What's new in v0.6.1-louis.8
+## What's new in v0.7.1-louis.9
 
-A fork prerelease with the changes in casi-3/peek PRs #22 to #27, ahead of upstream merging them.
+A fork prerelease built on Peek v0.7.0, with the changes in casi-3/peek PRs #31 to #35 ahead of upstream merging them, plus a few fork-only extras.
 
-**Pop-ups and live view keep working after sleep** (new in this release)
-- After the PC woke from sleep, and sometimes after a restart, the shortcut and "Show live view" did nothing and no pop-ups appeared until Peek was restarted. They now keep working.
-- If Frigate isn't reachable yet when Peek starts at login, it keeps trying instead of giving up.
-- If another app holds the live view shortcut when Peek starts, Peek keeps trying to claim it for 5 minutes.
-- Peek now writes a log, peek.log, in its config folder (tray menu, Open config folder). Attach it when reporting a problem.
+**Pop-ups and live view open in front on every virtual desktop** (new in this release)
+- With several Windows virtual desktops, the pop-up or live view could open hidden behind other windows on some desktops. The shortcut and pop-ups seemed to do nothing until Peek was restarted. They now always open in front, without taking focus.
+- This was the real cause of the problem v0.6.1-louis.8 put down to sleep, so the sleep-specific changes from that release are removed.
+
+**Right-click menu** (new in this release)
+- Right-click a pop-up or the live view to open the same menu as the tray icon, without going to the taskbar.
+- A pop-up stays up while the menu is open and starts its countdown again once you close it.
+
+**Now based on Peek v0.7.0** (new in this release)
+- The fork now sits on top of the official v0.7.0 release, which includes the live view, zoom, zone and pause features first made here. They work as before.
 
 ### Earlier in this fork
+
+**Keeps working after a restart**
+- If Frigate isn't reachable yet when Peek starts at login, it keeps trying instead of giving up.
+- If another app holds the live view shortcut when Peek starts, Peek keeps trying to claim it for 5 minutes.
+- If the pop-up window's display process crashes, Peek rebuilds the window instead of showing nothing until a restart.
+- Peek writes a log, peek.log, in its config folder (tray menu, Open config folder). Attach it when reporting a problem.
 
 **Overlay stays on its monitor after a restart**
 - With two or more monitors, an overlay moved to a non-main monitor came back on the main monitor after restarting the PC. It now stays where you put it.
