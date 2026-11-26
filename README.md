@@ -28,7 +28,7 @@
 - Several objects at once, each with its own coloured chip and bounding box
 - Only pop up for objects in the Frigate zones you pick
 - Optional instant snapshot so there is no black frame while the live feed connects
-- Menu bar app: pick which cameras notify, toggle sound, set the dismiss delay
+- Menu bar app, with the same menu a right-click away on the pop-up or live view: pick which cameras notify, toggle sound, set the dismiss delay
 - Dismiss when every object stops moving, or after a set delay
 - Pause pop-ups for 30 minutes, 1, 3 or 6 hours, or the rest of the day
 - Global keyboard shortcut (default `Ctrl+Alt+Z`) opens a live view of one camera or a grid of several, on demand
