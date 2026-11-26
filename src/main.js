@@ -11,10 +11,6 @@ const frigateAuth = require('./frigate-auth')
 const { log } = require('./log')
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
-// Chromium marks windows as occluded while the session is locked or asleep and stops
-// painting them. The hidden, always-on-top transparent overlay is not always marked
-// visible again, so after a wake or a login it was shown but drew nothing.
-if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 
 const gotInstanceLock = app.requestSingleInstanceLock()
 if (!gotInstanceLock) {
@@ -323,6 +319,7 @@ function enterPlacement() {
   positionWindow()
   win.setMovable(true)
   win.webContents.send('overlay-mode', 'placement')
+  reassertOnTop()
   win.show()
   win.focus()
 }
@@ -403,11 +400,11 @@ function createWindow() {
   contents.on('did-fail-load', (e, code, description, url, isMainFrame) => {
     if (!isMainFrame || code === -3) return
     log('overlay failed to load: ' + description + ' (' + code + ')')
-    recreateOverlay(true)
+    recreateOverlay()
   })
   contents.on('render-process-gone', (e, details) => {
     log('overlay renderer gone: ' + details.reason + ' (exit code ' + details.exitCode + ')')
-    recreateOverlay(true)
+    recreateOverlay()
   })
   win.on('unresponsive', () => log('overlay unresponsive'))
   win.on('responsive', () => log('overlay responsive again'))
@@ -415,18 +412,15 @@ function createWindow() {
   positionWindow()
 }
 
-// The overlay is transparent, so when its renderer is dead or has stopped painting it shows
-// nothing at all, and every event and live view request sent to it is silently lost. Only
-// failures count toward the cap; a fresh window after a wake or unlock is routine.
-function recreateOverlay(failed) {
+// The overlay is transparent, so with a dead renderer it shows nothing at all, and every
+// event and live view request sent to it is silently lost.
+function recreateOverlay() {
   if (overlayRecreateTimer) return
-  if (failed) {
-    if (overlayRecreates >= OVERLAY_MAX_RECREATES) {
-      log('overlay keeps failing, not recreating it again')
-      return
-    }
-    overlayRecreates++
+  if (overlayRecreates >= OVERLAY_MAX_RECREATES) {
+    log('overlay keeps failing, not recreating it again')
+    return
   }
+  overlayRecreates++
   overlayRecreateTimer = setTimeout(() => {
     overlayRecreateTimer = null
     const old = win
@@ -440,8 +434,8 @@ function recreateOverlay(failed) {
   }, OVERLAY_RECREATE_DELAY_MS)
 }
 
-// Records whether the overlay page itself believes it is visible. "hidden" while the window
-// is shown means Chromium has stopped painting it.
+// Records whether the overlay page itself believes it is visible, as a first check when a
+// pop-up or live view is reported as not showing.
 function logOverlayState(what) {
   const w = win
   if (!w || w.isDestroyed()) return
@@ -670,7 +664,7 @@ function openLiveView() {
   liveView = { count: cameras.length }
   setTimeout(() => logOverlayState('opened live view (' + cameras.length + ' cameras)'), 500)
   positionWindow()
-  win.showInactive()
+  showOverlayOnTop()
   win.webContents.send('live-open', {
     muted: cameras.length > 1 || !prefs.sound,
     cameras: cameras.map(camera => ({
@@ -749,6 +743,20 @@ function hotkeyAvailable(accelerator) {
 function revealOverlay() {
   liveView = null
   positionWindow()
+  showOverlayOnTop()
+}
+
+// With several virtual desktops, Windows can leave the overlay below ordinary windows on
+// some desktops even though it is still flagged always-on-top, so it opened unseen behind
+// them. Turning always-on-top off and on again before each show puts it back in front.
+function reassertOnTop() {
+  if (process.platform !== 'win32') return
+  win.setAlwaysOnTop(false)
+  win.setAlwaysOnTop(true, 'screen-saver')
+}
+
+function showOverlayOnTop() {
+  reassertOnTop()
   win.showInactive()
 }
 
@@ -1624,13 +1632,9 @@ app.whenReady().then(() => {
   const { powerMonitor } = require('electron')
   powerMonitor.on('suspend', () => log('going to sleep'))
   powerMonitor.on('lock-screen', () => log('screen locked'))
-  powerMonitor.on('unlock-screen', () => {
-    log('screen unlocked')
-    if (appStarted && !placementMode) recreateOverlay(false)
-  })
+  powerMonitor.on('unlock-screen', () => log('screen unlocked'))
   powerMonitor.on('resume', () => {
     log('resumed from sleep')
-    if (appStarted && !placementMode) recreateOverlay(false)
     if (mqttClient) mqttClient.reconnect()
     initFrigateAuth()
     if (prefs) {
